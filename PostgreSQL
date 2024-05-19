@@ -1,0 +1,723 @@
+--- The following data manipulation is based on the dataset published in Karg et al., 2023 (MATERIALIZED VIEW dp_final_record)
+
+
+--- Remove data on air and rail transport
+--- Assign location characteristics, such as population, category into rural, urban, etc. to suppliers. Location characteristics are based on spatial analysis
+--- cont.: overlaying the original geocoded locations with africapolis spatial data. Based on the distance to the closest africapolis settlement and the size of the 
+--- cont.: africapolis settlement, classification into rural and different urban classes were performed, s. Karg et al., 2022:
+---All georeferenced source and destination locations were classified urban if located within a certain distance to the next urban centre. Thereby, the distance threshold is a function of city size:
+---•	10 000 - 30 000 : 3km
+---•	30 000 - 100 000 : 5km
+---•	100 000 - 300 000 : 10km
+---•	300 000 - 1 000 000 : 15km
+---•	1 000 000 - 3 000 000 : 20km
+---•	Above 3m : 25km
+
+---DROP MATERIALIZED VIEW final_record_node_size;
+CREATE MATERIALIZED VIEW final_record_node_size AS
+SELECT f.*, y.classification_rural_urban, y.size_africapolis_near_settlement
+	FROM dp_final_record f
+	LEFT OUTER JOIN location_characteristics_tle y ON f.source_ID=y.id
+	WHERE f.city='Tamale'
+UNION ALL
+SELECT f.*, y.classification_rural_urban, y.size_africapolis_near_settlement
+	FROM dp_final_record f
+	LEFT OUTER JOIN location_characteristics_ouaga y ON f.source_ID=y.id
+	WHERE f.city='Ouagadougou'
+	AND (f.means_of_transport<>'Rail' AND f.means_of_transport<>'Plane'
+	OR f.means_of_transport IS NULL)
+	AND f.season<>'revolution'
+UNION ALL
+SELECT f.*, y.classification_rural_urban, y.size_africapolis_near_settlement
+	FROM dp_final_record f
+	LEFT OUTER JOIN location_characteristics_bko y ON f.source_ID=y.id
+	WHERE f.city='Bamako'
+UNION ALL
+SELECT f.*, y.classification_rural_urban, y.size_africapolis_near_settlement
+	FROM dp_final_record f
+	LEFT OUTER JOIN location_characteristics_bda y ON f.source_ID=y.id
+	WHERE f.city='Bamenda';
+	
+SELECT COUNT(*)
+FROM final_record_node_size
+
+--- In the following code, data entries are updated, where geographical information was missing. This concerns intra-regional sources in the dataset 
+--- cont.: that lack accurate geographical information, for instance if a source was given as ‘Ghana’ without further specification. 
+--- cont.: In these cases, the source was replaced with the major supplying settlement for the specific product containing geographical information. 
+
+--- Create view with new location info (e.g., where source is 'Ghana' [for selected products], new source is 'Kumasi (Ghana)'): Concerns 12 distinct entries.
+
+---DROP VIEW locations_replacement CASCADE;
+CREATE VIEW locations_replacement AS
+SELECT DISTINCT source_name, source_ID, source_geometry, city, distance_to_source_km, classification_rural_urban, 
+size_africapolis_near_settlement, 632 AS join_id
+FROM final_record_node_size
+WHERE (city='Ouagadougou'
+AND season='peak'
+AND year=2014
+AND source_id=647) 
+UNION ALL
+SELECT DISTINCT source_name, source_ID, source_geometry, city, distance_to_source_km, classification_rural_urban, 
+size_africapolis_near_settlement, 633 AS join_id
+FROM final_record_node_size
+WHERE
+(city='Ouagadougou'
+AND season='peak'
+AND year=2014
+AND source_id=302) 
+UNION ALL
+SELECT DISTINCT source_name, source_ID, source_geometry, city, distance_to_source_km, classification_rural_urban, 
+size_africapolis_near_settlement, 633 AS join_id
+FROM final_record_node_size
+WHERE
+(city='Ouagadougou'
+AND season='peak'
+AND year=2014
+AND source_id=652) 
+UNION ALL
+SELECT DISTINCT source_name, source_ID, source_geometry, city, distance_to_source_km, classification_rural_urban, 
+size_africapolis_near_settlement, 634 AS join_id
+FROM final_record_node_size
+WHERE
+(city='Ouagadougou'
+AND season='peak'
+AND year=2014
+AND commodity_name_gen='Onion'
+AND source_id=645) 
+UNION ALL
+SELECT DISTINCT source_name, source_ID, source_geometry, city, distance_to_source_km, classification_rural_urban, 
+size_africapolis_near_settlement, 635 AS join_id
+FROM final_record_node_size
+WHERE
+(city='Ouagadougou'
+AND season='peak'
+AND year=2014
+AND source_id=637) 
+UNION ALL
+SELECT DISTINCT source_name, source_ID, source_geometry, city, distance_to_source_km, classification_rural_urban, 
+size_africapolis_near_settlement, 636 AS join_id
+FROM final_record_node_size
+WHERE
+(city='Bamako'
+AND season='peak'
+AND year=2015
+AND commodity_name_gen='Groundnut'
+AND source_id=949) 
+UNION ALL
+SELECT DISTINCT source_name, source_ID, source_geometry, city, distance_to_source_km, classification_rural_urban, 
+size_africapolis_near_settlement, 646 AS join_id
+FROM final_record_node_size
+WHERE
+(city='Ouagadougou'
+AND season='peak'
+AND year=2014
+AND source_id=694)
+UNION ALL
+SELECT DISTINCT source_name, source_ID, source_geometry, city, distance_to_source_km, classification_rural_urban, 
+size_africapolis_near_settlement, 697 AS join_id
+FROM final_record_node_size
+WHERE
+(city='Bamenda'
+AND year=2017
+AND source_id=716)
+UNION ALL
+SELECT DISTINCT source_name, source_ID, source_geometry, city, distance_to_source_km, classification_rural_urban, 
+size_africapolis_near_settlement, 820 AS join_id
+FROM final_record_node_size
+WHERE
+(city='Bamako'
+AND season='peak'
+AND year=2015
+AND source_id=821) 
+UNION ALL
+SELECT DISTINCT source_name, source_ID, source_geometry, city, distance_to_source_km, classification_rural_urban, 
+size_africapolis_near_settlement, 829 AS join_id
+FROM final_record_node_size
+WHERE
+(city='Bamako'
+AND season='peak'
+AND year=2015
+AND source_id=842) 
+UNION ALL
+SELECT DISTINCT f.destination_name AS source_name, f.destination_ID AS source_ID, f.destination_geometry AS source_geometry, 
+f.city, f.distance_to_destination_km as distance_to_source_km, g.classification_rural_urban AS classification_rural_urban, 
+g.size_africapolis_near_settlement AS size_africapolis_near_settlement, 833 AS join_id
+FROM final_record_node_size f, location_characteristics_bko g
+WHERE f.city='Bamako'
+AND f.destination_id=1081
+AND f.destination_id=g.id
+UNION ALL
+SELECT DISTINCT g.label AS source_name, g.id AS source_ID, ST_AsText(h.geom) AS source_geometry, 
+'Bamako' AS city, g.distance_to_focal_city_km as distance_to_source_km, g.classification_rural_urban AS classification_rural_urban, 
+g.size_africapolis_near_settlement AS size_africapolis_near_settlement, 847 AS join_id
+FROM location_characteristics_bko g, food_flow_locations_bamako h
+WHERE g.id=848
+AND h.id=g.id;
+
+--- Here, those entries with inaccurate spatial information (e.g. source as 'Ghana') are assigned spatial information 
+--- cont.: of the reference supplying settlement as defined in the above code. Concerns 36 entries.
+
+---DROP VIEW new_entries_updated_locations;
+CREATE VIEW new_entries_updated_locations AS
+SELECT f.source_name, f.source_ID, 
+(SELECT g.source_geometry 
+FROM locations_replacement g
+WHERE g.source_id=647) AS source_geometry, f.total_quantity, f.daily_quantity, f.daily_quantity_adjusted_for_missing_locations, f.population, f.city, f.season, f.year, 
+(SELECT g.distance_to_source_km 
+FROM locations_replacement g
+WHERE g.source_id=647) AS distance_to_source_km, f.commodity_name_gen, f.commodity_category,
+(SELECT g.classification_rural_urban 
+FROM locations_replacement g
+WHERE g.source_id=647) AS classification_rural_urban, 
+(SELECT g.size_africapolis_near_settlement 
+FROM locations_replacement g
+WHERE g.source_id=647) AS size_africapolis_near_settlement
+FROM final_record_node_size f
+WHERE f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Orange'
+AND f.source_id=632
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes'
+UNION ALL
+SELECT f.source_name, f.source_ID, 
+(SELECT g.source_geometry 
+FROM locations_replacement g
+WHERE g.source_id=302) AS source_geometry, f.total_quantity, f.daily_quantity, f.daily_quantity_adjusted_for_missing_locations, f.population, f.city, f.season, f.year, 
+(SELECT g.distance_to_source_km 
+FROM locations_replacement g
+WHERE g.source_id=302) AS distance_to_source_km, f.commodity_name_gen, f.commodity_category,
+(SELECT g.classification_rural_urban 
+FROM locations_replacement g
+WHERE g.source_id=302) AS classification_rural_urban, 
+(SELECT g.size_africapolis_near_settlement 
+FROM locations_replacement g
+WHERE g.source_id=302) AS size_africapolis_near_settlement
+FROM final_record_node_size f
+WHERE f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Bean'
+AND f.source_id=633
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes'
+UNION ALL
+SELECT f.source_name, f.source_ID, 
+(SELECT g.source_geometry 
+FROM locations_replacement g
+WHERE g.source_id=652) AS source_geometry, f.total_quantity, f.daily_quantity, f.daily_quantity_adjusted_for_missing_locations, f.population, f.city, f.season, f.year, 
+(SELECT g.distance_to_source_km 
+FROM locations_replacement g
+WHERE g.source_id=652) AS distance_to_source_km, f.commodity_name_gen, f.commodity_category,
+(SELECT g.classification_rural_urban 
+FROM locations_replacement g
+WHERE g.source_id=652) AS classification_rural_urban, 
+(SELECT g.size_africapolis_near_settlement 
+FROM locations_replacement g
+WHERE g.source_id=652) AS size_africapolis_near_settlement
+FROM final_record_node_size f
+WHERE f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Maize'
+AND f.source_id=633
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes'
+UNION ALL
+SELECT f.source_name, f.source_ID, 
+(SELECT g.source_geometry 
+FROM locations_replacement g
+WHERE g.source_id=652) AS source_geometry, f.total_quantity, f.daily_quantity, f.daily_quantity_adjusted_for_missing_locations, f.population, f.city, f.season, f.year, 
+(SELECT g.distance_to_source_km 
+FROM locations_replacement g
+WHERE g.source_id=652) AS distance_to_source_km, f.commodity_name_gen, f.commodity_category,
+(SELECT g.classification_rural_urban 
+FROM locations_replacement g
+WHERE g.source_id=652) AS classification_rural_urban, 
+(SELECT g.size_africapolis_near_settlement 
+FROM locations_replacement g
+WHERE g.source_id=652) AS size_africapolis_near_settlement
+FROM final_record_node_size f
+WHERE f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Yam'
+AND f.source_id=633
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes'
+UNION ALL
+SELECT f.source_name, f.source_ID, 
+(SELECT g.source_geometry 
+FROM locations_replacement g
+WHERE g.source_id=645) AS source_geometry, f.total_quantity, f.daily_quantity, f.daily_quantity_adjusted_for_missing_locations, f.population, f.city, f.season, f.year, 
+(SELECT g.distance_to_source_km 
+FROM locations_replacement g
+WHERE g.source_id=645) AS distance_to_source_km, f.commodity_name_gen, f.commodity_category,
+(SELECT g.classification_rural_urban 
+FROM locations_replacement g
+WHERE g.source_id=645) AS classification_rural_urban, 
+(SELECT g.size_africapolis_near_settlement 
+FROM locations_replacement g
+WHERE g.source_id=645) AS size_africapolis_near_settlement
+FROM final_record_node_size f
+WHERE f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Onion'
+AND f.source_id=634
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes'
+UNION ALL
+SELECT f.source_name, f.source_ID, 
+(SELECT g.source_geometry 
+FROM locations_replacement g
+WHERE g.source_id=637) AS source_geometry, f.total_quantity, f.daily_quantity, f.daily_quantity_adjusted_for_missing_locations, f.population, f.city, f.season, f.year, 
+(SELECT g.distance_to_source_km 
+FROM locations_replacement g
+WHERE g.source_id=637) AS distance_to_source_km, f.commodity_name_gen, f.commodity_category,
+(SELECT g.classification_rural_urban 
+FROM locations_replacement g
+WHERE g.source_id=637) AS classification_rural_urban, 
+(SELECT g.size_africapolis_near_settlement 
+FROM locations_replacement g
+WHERE g.source_id=637) AS size_africapolis_near_settlement
+FROM final_record_node_size f
+WHERE f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Banana'
+AND f.source_id=635
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes'
+UNION ALL
+SELECT f.source_name, f.source_ID, 
+(SELECT g.source_geometry 
+FROM locations_replacement g
+WHERE g.source_id=637) AS source_geometry, f.total_quantity, f.daily_quantity, f.daily_quantity_adjusted_for_missing_locations, f.population, f.city, f.season, f.year, 
+(SELECT g.distance_to_source_km 
+FROM locations_replacement g
+WHERE g.source_id=637) AS distance_to_source_km, f.commodity_name_gen, f.commodity_category,
+(SELECT g.classification_rural_urban 
+FROM locations_replacement g
+WHERE g.source_id=637) AS classification_rural_urban, 
+(SELECT g.size_africapolis_near_settlement 
+FROM locations_replacement g
+WHERE g.source_id=637) AS size_africapolis_near_settlement
+FROM final_record_node_size f
+WHERE f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Plantain'
+AND f.source_id=635
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes'
+UNION ALL
+SELECT f.source_name, f.source_ID, 
+(SELECT g.source_geometry 
+FROM locations_replacement g
+WHERE g.source_id=949) AS source_geometry, f.total_quantity, f.daily_quantity, f.daily_quantity_adjusted_for_missing_locations, f.population, f.city, f.season, f.year, 
+ST_distance(ST_Transform('SRID=4326;POINT(-1.52376 12.36799)'::geometry, 32630), ST_Transform('SRID=4326;POINT(-8.33713133256615 13.1350599102025)'::geometry, 32630))/1000 AS distance_to_source_km,
+f.commodity_name_gen, f.commodity_category,
+(SELECT g.classification_rural_urban 
+FROM locations_replacement g
+WHERE g.source_id=949) AS classification_rural_urban, 
+(SELECT g.size_africapolis_near_settlement 
+FROM locations_replacement g
+WHERE g.source_id=949) AS size_africapolis_near_settlement
+FROM final_record_node_size f
+WHERE f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Groundnut'
+AND f.source_id=636
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes'
+UNION ALL
+SELECT f.source_name, f.source_ID, 
+(SELECT g.source_geometry 
+FROM locations_replacement g
+WHERE g.source_id=694) AS source_geometry, f.total_quantity, f.daily_quantity, f.daily_quantity_adjusted_for_missing_locations, f.population, f.city, f.season, f.year, 
+(SELECT g.distance_to_source_km 
+FROM locations_replacement g
+WHERE g.source_id=694) AS distance_to_source_km, f.commodity_name_gen, f.commodity_category,
+(SELECT g.classification_rural_urban 
+FROM locations_replacement g
+WHERE g.source_id=694) AS classification_rural_urban, 
+(SELECT g.size_africapolis_near_settlement 
+FROM locations_replacement g
+WHERE g.source_id=694) AS size_africapolis_near_settlement
+FROM final_record_node_size f
+WHERE f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Maize'
+AND f.source_id=646
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes'
+UNION ALL
+SELECT f.source_name, f.source_ID, 
+(SELECT g.source_geometry 
+FROM locations_replacement g
+WHERE g.source_id=694) AS source_geometry, f.total_quantity, f.daily_quantity, f.daily_quantity_adjusted_for_missing_locations, f.population, f.city, f.season, f.year, 
+(SELECT g.distance_to_source_km 
+FROM locations_replacement g
+WHERE g.source_id=694) AS distance_to_source_km, f.commodity_name_gen, f.commodity_category,
+(SELECT g.classification_rural_urban 
+FROM locations_replacement g
+WHERE g.source_id=694) AS classification_rural_urban, 
+(SELECT g.size_africapolis_near_settlement 
+FROM locations_replacement g
+WHERE g.source_id=694) AS size_africapolis_near_settlement
+FROM final_record_node_size f
+WHERE f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Millet'
+AND f.source_id=646
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes'
+UNION ALL
+SELECT f.source_name, f.source_ID, 
+(SELECT g.source_geometry 
+FROM locations_replacement g
+WHERE g.source_id=694) AS source_geometry, f.total_quantity, f.daily_quantity, f.daily_quantity_adjusted_for_missing_locations, f.population, f.city, f.season, f.year, 
+(SELECT g.distance_to_source_km 
+FROM locations_replacement g
+WHERE g.source_id=694) AS distance_to_source_km, f.commodity_name_gen, f.commodity_category,
+(SELECT g.classification_rural_urban 
+FROM locations_replacement g
+WHERE g.source_id=694) AS classification_rural_urban, 
+(SELECT g.size_africapolis_near_settlement 
+FROM locations_replacement g
+WHERE g.source_id=694) AS size_africapolis_near_settlement
+FROM final_record_node_size f
+WHERE f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Yam'
+AND f.source_id=646
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes'
+UNION ALL
+SELECT f.source_name, f.source_ID, 
+(SELECT g.source_geometry 
+FROM locations_replacement g
+WHERE g.source_id=716) AS source_geometry, f.total_quantity, f.daily_quantity, f.daily_quantity_adjusted_for_missing_locations, f.population, f.city, f.season, f.year, 
+(SELECT g.distance_to_source_km 
+FROM locations_replacement g
+WHERE g.source_id=716) AS distance_to_source_km, f.commodity_name_gen, f.commodity_category,
+(SELECT g.classification_rural_urban 
+FROM locations_replacement g
+WHERE g.source_id=716) AS classification_rural_urban, 
+(SELECT g.size_africapolis_near_settlement 
+FROM locations_replacement g
+WHERE g.source_id=716) AS size_africapolis_near_settlement
+FROM final_record_node_size f
+WHERE f.city='Bamenda'
+AND f.season='lean'
+AND f.year=2017
+AND f.commodity_name_gen='Orange'
+AND f.source_id=697
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes'
+UNION ALL
+SELECT f.source_name, f.source_ID, 
+(SELECT g.source_geometry 
+FROM locations_replacement g
+WHERE g.source_id=821) AS source_geometry, f.total_quantity, f.daily_quantity, f.daily_quantity_adjusted_for_missing_locations, f.population, f.city, f.season, f.year, 
+(SELECT g.distance_to_source_km 
+FROM locations_replacement g
+WHERE g.source_id=821) AS distance_to_source_km, f.commodity_name_gen, f.commodity_category,
+(SELECT g.classification_rural_urban 
+FROM locations_replacement g
+WHERE g.source_id=821) AS classification_rural_urban, 
+(SELECT g.size_africapolis_near_settlement 
+FROM locations_replacement g
+WHERE g.source_id=821) AS size_africapolis_near_settlement
+FROM final_record_node_size f
+WHERE f.city='Bamako'
+AND f.season='peak'
+AND f.year=2015
+AND f.commodity_name_gen='Plantain'
+AND f.source_id=820
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes'
+UNION ALL
+SELECT f.source_name, f.source_ID, 
+(SELECT g.source_geometry 
+FROM locations_replacement g
+WHERE g.source_id=842) AS source_geometry, f.total_quantity, f.daily_quantity, f.daily_quantity_adjusted_for_missing_locations, f.population, f.city, f.season, f.year, 
+(SELECT g.distance_to_source_km 
+FROM locations_replacement g
+WHERE g.source_id=842) AS distance_to_source_km, f.commodity_name_gen, f.commodity_category,
+(SELECT g.classification_rural_urban 
+FROM locations_replacement g
+WHERE g.source_id=842) AS classification_rural_urban, 
+(SELECT g.size_africapolis_near_settlement 
+FROM locations_replacement g
+WHERE g.source_id=842) AS size_africapolis_near_settlement
+FROM final_record_node_size f
+WHERE f.city='Bamako'
+AND f.season='peak'
+AND f.year=2015
+AND f.commodity_name_gen='Onion'
+AND f.source_id=829
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes'
+UNION ALL
+SELECT f.source_name, f.source_ID, 
+(SELECT g.source_geometry 
+FROM locations_replacement g
+WHERE g.source_id=1081) AS source_geometry, f.total_quantity, f.daily_quantity, f.daily_quantity_adjusted_for_missing_locations, f.population, f.city, f.season, f.year, 
+(SELECT g.distance_to_source_km 
+FROM locations_replacement g
+WHERE g.source_id=1081) AS distance_to_source_km, f.commodity_name_gen, f.commodity_category,
+(SELECT g.classification_rural_urban 
+FROM locations_replacement g
+WHERE g.source_id=1081) AS classification_rural_urban, 
+(SELECT g.size_africapolis_near_settlement 
+FROM locations_replacement g
+WHERE g.source_id=1081) AS size_africapolis_near_settlement
+FROM final_record_node_size f
+WHERE f.city='Bamako'
+AND f.season='peak'
+AND f.year=2015
+AND f.commodity_name_gen='Orange'
+AND f.source_id=833
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes'
+UNION ALL
+SELECT f.source_name, f.source_ID, 
+(SELECT g.source_geometry 
+FROM locations_replacement g
+WHERE g.source_id=848) AS source_geometry, f.total_quantity, f.daily_quantity, f.daily_quantity_adjusted_for_missing_locations, f.population, f.city, f.season, f.year, 
+(SELECT g.distance_to_source_km 
+FROM locations_replacement g
+WHERE g.source_id=848) AS distance_to_source_km, f.commodity_name_gen, f.commodity_category,
+(SELECT g.classification_rural_urban 
+FROM locations_replacement g
+WHERE g.source_id=848) AS classification_rural_urban, 
+(SELECT g.size_africapolis_near_settlement 
+FROM locations_replacement g
+WHERE g.source_id=848) AS size_africapolis_near_settlement
+FROM final_record_node_size f
+WHERE f.city='Bamako'
+AND f.season='peak'
+AND f.year=2015
+AND f.commodity_name_gen='Cowpea'
+AND f.source_id=847
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes';
+
+--- Those rows, which will be replaced by updated rows (including spatial information), will be removed from dataset on incoming flow only (WHERE f.source_within_urban_boundary='no'AND f.destination_within_urban_boundary='yes').
+--- cont.: Dataview has now 38996 rows (minus 36).
+
+---DROP VIEW final_record_incoming_node_size_minus_locations CASCADE;
+CREATE VIEW final_record_incoming_node_size_minus_locations AS
+SELECT f.source_name, f.source_ID, f.source_geometry, f.total_quantity, f.daily_quantity, f.daily_quantity_adjusted_for_missing_locations, f.population, f.city, f.season, f.year, 
+f.distance_to_source_km, f.commodity_name_gen, f.commodity_category,
+f.classification_rural_urban, f.size_africapolis_near_settlement
+FROM final_record_node_size f
+WHERE f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes'
+EXCEPT ALL
+SELECT f.source_name, f.source_ID, f.source_geometry, f.total_quantity, f.daily_quantity, f.daily_quantity_adjusted_for_missing_locations, f.population, f.city, f.season, f.year, 
+f.distance_to_source_km, f.commodity_name_gen, f.commodity_category,
+f.classification_rural_urban, f.size_africapolis_near_settlement
+FROM final_record_node_size f
+WHERE (f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Orange'
+AND f.source_id=632
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes')
+OR
+(f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Bean'
+AND f.source_id=633
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes')
+OR
+(f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Maize'
+AND f.source_id=633
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes')
+OR
+(f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Yam'
+AND f.source_id=633
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes')
+OR
+(f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Onion'
+AND f.source_id=634
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes')
+OR
+(f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Banana'
+AND f.source_id=635
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes')
+OR
+(f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Plantain'
+AND f.source_id=635
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes')
+OR
+(f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Groundnut'
+AND f.source_id=636
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes')
+OR
+(f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Maize'
+AND f.source_id=646
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes')
+OR
+(f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Millet'
+AND f.source_id=646
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes')
+OR
+(f.city='Ouagadougou'
+AND f.season='peak'
+AND f.year=2014
+AND f.commodity_name_gen='Yam'
+AND f.source_id=646
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes')
+OR
+(f.city='Bamenda'
+AND f.season='lean'
+AND f.year=2017
+AND f.commodity_name_gen='Orange'
+AND f.source_id=697
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes')
+OR
+(f.city='Bamako'
+AND f.season='peak'
+AND f.year=2015
+AND f.commodity_name_gen='Plantain'
+AND f.source_id=820
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes')
+OR
+(f.city='Bamako'
+AND f.season='peak'
+AND f.year=2015
+AND f.commodity_name_gen='Onion'
+AND f.source_id=829
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes')
+OR
+(f.city='Bamako'
+AND f.season='peak'
+AND f.year=2015
+AND f.commodity_name_gen='Orange'
+AND f.source_id=833
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes')
+OR
+(f.city='Bamako'
+AND f.season='peak'
+AND f.year=2015
+AND f.commodity_name_gen='Cowpea'
+AND f.source_id=847
+AND f.source_within_urban_boundary='no'
+AND f.destination_within_urban_boundary='yes');
+
+--- Create new dataset 'final_record_node_size_new_locations' by adding updated rows to the view generated in the above code.
+
+CREATE VIEW final_record_incoming_new_locations AS
+SELECT *
+FROM final_record_incoming_node_size_minus_locations
+UNION ALL
+SELECT *
+FROM new_entries_updated_locations;
+
+--- This dataview reassigns commodity name to 'Pulses' (incl. beans, bambara beans, cowpea).
+
+---DROP VIEW pulses_incoming
+CREATE VIEW pulses_incoming AS
+SELECT source_name, source_ID, source_geometry, total_quantity, daily_quantity, daily_quantity_adjusted_for_missing_locations, population, city, season, year, 
+distance_to_source_km, 'Pulses' AS commodity_name_gen, commodity_category,
+classification_rural_urban, size_africapolis_near_settlement
+FROM final_record_incoming_new_locations
+WHERE commodity_name_gen='Bambara beans' OR commodity_name_gen='Cowpea' OR commodity_name_gen='Bean';
+
+--- Merge new dataview 'Pulses' (pulses_incoming) and remaining dataview.
+---DROP VIEW final_records_incoming_incl_pulses
+CREATE VIEW final_records_incoming_incl_pulses AS
+SELECT *
+FROM final_record_incoming_new_locations
+UNION ALL
+SELECT *
+FROM pulses_incoming;
+
+SELECT COUNT(*)
+FROM final_records_incoming_at_node_level
+--- Dataview on incoming flows is aggregated by supplying settlement (source), product, season, year, and focal city.
+--- New column 'node_size' for population size (rural settlements are assigned 5000 people, for urban centres, population from africapolis are taken).
+
+DROP VIEW final_records_incoming_at_node_level CASCADE;
+CREATE VIEW final_records_incoming_at_node_level AS
+SELECT source_name, source_ID, ST_GeomFromText(source_geometry) AS geom, AVG(total_quantity) AS mean_unit_quantity, SUM(daily_quantity) AS daily_quantity, SUM(daily_quantity_adjusted_for_missing_locations) AS daily_quantity_adjusted, COUNT(*) AS no_connections, population, city, season, year, distance_to_source_km, commodity_name_gen, commodity_category, CASE 
+WHEN classification_rural_urban='Rural' THEN 5000 WHEN classification_rural_urban IS NULL THEN NULL WHEN classification_rural_urban='Urban' THEN size_africapolis_near_settlement END AS node_size
+FROM final_records_incoming_incl_pulses
+GROUP BY source_name, source_ID, population, city, season, year, distance_to_source_km, commodity_name_gen, commodity_category, classification_rural_urban, size_africapolis_near_settlement, source_geometry ;
+
+--- Incoming flows aggregated by product, year, season and city.
+
+---DROP VIEW final_records_incoming_at_city_level;
+CREATE VIEW final_records_incoming_at_city_level AS 
+SELECT SUM(daily_quantity_adjusted_for_missing_locations) AS total_quantity, COUNT(*) AS total_number_connections, population, city, commodity_name_gen, commodity_category, season, year
+FROM final_records_incoming_incl_pulses
+GROUP BY commodity_name_gen, commodity_category, season, year, population, city;
+
+
+--- Join city level aggregated rows to node level rows.
+
+---DROP VIEW dataset_nodelevel_incoming
+CREATE VIEW dataset_nodelevel_incoming AS 
+SELECT f.source_name, f.source_ID AS source, f.geom, f.mean_unit_quantity, f.daily_quantity_adjusted AS daily_quantity, g.total_quantity, f.daily_quantity_adjusted*100/g.total_quantity AS percent_of_total_quantity, f.no_connections, g.total_number_connections, f.no_connections*100.00/g.total_number_connections AS percent_of_total_connections, f.node_size, f.distance_to_source_km, f.commodity_name_gen, f.commodity_category, f.season, f.year, f.population, f.city
+FROM final_records_incoming_at_node_level f, final_records_incoming_at_city_level g
+WHERE f.city=g.city
+AND f.commodity_name_gen=g.commodity_name_gen
+AND f.season=g.season
+AND f.year=g.year;
+
+
+
+--- add serial id and save to file
+
+COPY (SELECT ROW_NUMBER() OVER (ORDER BY 1) AS id, * FROM dataset_nodelevel_incoming) TO 'C:\Users\Public\postgresql_files\dataset_nodelevel_incoming.csv' with (FORMAT CSV, HEADER TRUE, DELIMITER ';', ENCODING 'WIN1252');
+
+

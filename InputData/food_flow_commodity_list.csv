@@ -1,0 +1,26 @@
+commodity_name_gen;commodity_category;GAEZ4_acronym;SPAM_acronym;SPAM_acronym_final;remarks;GAEZ4_harvest_acronym;GAEZ4_harvest_name;remarks
+Banana;Fruit;ban;BANA;BANA;;ban;;
+Cabbage;Vegetable;cab;;wo_spam;;wo_gaez;;
+Cowpea;Legume;cow;COWP;wo_spam;;pls;Pulses;
+Cassava;Root and tuber;csv;CASS;wo_spam;;rt2;;
+Groundnut;Legume;grd;GROU;GROU;;grd;;
+Millet;Cereal;pml;PMIL;PMIL;Pearl millet;mlt;;
+Maize;Cereal;mze;MAIZ;MAIZ;;mze;;
+Onion;Vegetable;oni;;wo_spam;;wo_gaez;;
+Bean;Legume;phb;BEAN;wo_spam;;pls;Pulses;
+Rice;Cereal;rcw;RICE;wo_spam;Wetland rice;rcw;;
+Soybean;Legume;soy;SOYB;wo_spam;;wo_gaez;;no data for Ghana
+Sweet potato;Root and tuber;spo;SWPO;wo_spam;;rt1;Potato and sweet potato;
+Sorghum;Cereal;srg;SORG;SORG;;srg;;
+Tomato;Vegetable;tom;;wo_spam;;wo_gaez;;
+Potato;Root and tuber;wpo;POTA;wo_spam;;rt1;Potato and sweet potato;
+Yam;Root and tuber;yam;YAMS;YAMS;;rt3;Yams and other roots;
+Pulses;Legume;phb;BEAN;BEAN;beans, bambara beans, cowpea;pls;;
+Plantain;Root and tuber;ban;PLNT;PLNT;;wo_gaez;;
+Orange;Fruit;wo_gaez;;wo_spam;;wo_gaez;;
+Watermelon;Fruit;wo_gaez;;wo_spam;;wo_gaez;;
+Sheep;Livestock;wo_gaez;;wo_spam;;wo_gaez;;
+Cattle;Livestock;wo_gaez;;wo_spam;;wo_gaez;;
+Chilli pepper;Vegetable;wo_gaez;;wo_spam;;wo_gaez;;
+Okra;Vegetable;wo_gaez;;wo_spam;;wo_gaez;;
+Eggplant;Vegetable;wo_gaez;;wo_spam;;wo_gaez;;
