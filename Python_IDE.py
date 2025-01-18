@@ -21,7 +21,6 @@ import math
 
 
 
-
 ##data
 
 myDir="/my_Directory/"

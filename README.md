@@ -1,4 +1,4 @@
-This repository contains the data processing and analysis code on which the paper "Karg, Bellwood-Howard and Ramankutty (2025): How cities source their food: spatial interactions in West African urban food supply" is based. 
+This repository contains the data processing and analysis code on which the paper "Karg, Bellwood-Howard and Ramankutty (2025): How cities source their food: spatial interactions in West African urban food supply" is based.
 
 PostgreSQL:
 
