@@ -707,7 +707,7 @@ plt.show()
 #plt.savefig(myDirFigures+"FigS5.png")
 
 
-## Fig. 8
+## Fig. 7
 
 palette = {'Tamale': '#20639B', 'Ouagadougou': '#3CAEA3', 'Bamako': '#F6D55C', 'Bamenda':'#ED553B'}
 
