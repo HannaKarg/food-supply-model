@@ -10,6 +10,7 @@ from statsmodels.graphics.api import interaction_plot, abline_plot
 from statsmodels.stats.anova import anova_lm
 from statsmodels.api import add_constant
 from scipy.stats import pearsonr
+from scipy import stats
 import os.path
 from os import path
 import copy
@@ -17,6 +18,7 @@ from matplotlib import rcParams
 import matplotlib.colors as mcolors
 import io
 import math
+
 
 
 
@@ -66,6 +68,9 @@ df['daily_per_cap_quantity_g']=df['daily_quantity']*1000/df['population']
 city_list=["Bamako", "Ouagadougou", "Tamale", "Bamenda"]
 merged_data = []
 
+df.shape[0]
+
+
 for city in city_list:
     for crop, category in zip(food_flow_commodity_df.commodity_name_gen, food_flow_commodity_df.commodity_category):
         file_path=myDirOutput+f"Flow_data/{city}_{crop}.csv"
@@ -90,6 +95,7 @@ for city in city_list:
 
 merged_data_all=pd.concat(merged_data)
 
+merged_data_all.shape[0]
 
 
 ## Fig.3: Barplot total inflows
@@ -117,8 +123,9 @@ plt.grid(axis='x', color='gray', linestyle='dashed')
 ax.set_ylabel('Commodity', labelpad=10)
 ax.set_xlabel('Inflows (g/cap/day)', labelpad=10)
 ax.legend(title='City')
-#plt.show()
-plt.savefig(myDirFigures+"Fig3.png")
+plt.show()
+#plt.savefig(myDirFigures+"Fig3.png")
+
 
 
 ## Fig. 4 and Table S1: Summary table
@@ -163,30 +170,6 @@ df_high_suitability=merged_data_all[(merged_data_all['avg_suitability'] >= 1 ) &
 grp = df_high_suitability.groupby(['city','commodity_name_gen', 'commodity_category', 'season', 'year'])
 high_suitability_sum=grp['percent_of_total_quantity'].sum()
 
-grp_sum_per_capita_quantity=merged_data_all.groupby(['city','commodity_name_gen', 'commodity_category', 'season', 'year', 'source', 'percent_of_total_quantity', 'spam_production_sum'], as_index=False)['per_capita_quantity_g'].sum()
-
-grp_production_max=grp_sum_per_capita_quantity.groupby(['city','commodity_name_gen', 'commodity_category', 'season', 'year'])['spam_production_sum'].max()
-
-grp_production_min=grp_sum_per_capita_quantity.groupby(['city','commodity_name_gen', 'commodity_category', 'season', 'year'])['spam_production_sum'].min()
-
-merge_prod_max=pd.merge(grp_sum_per_capita_quantity, grp_production_max, how="left", on=['city', 'season', 'year', 'commodity_name_gen', 'commodity_category'])
-
-merge_prod_max_min=pd.merge(merge_prod_max, grp_production_min, how="left", on=['city', 'season', 'year', 'commodity_name_gen', 'commodity_category'])
-
-merge_prod_max_min['norm_production_%']=(merge_prod_max_min['spam_production_sum_x']-merge_prod_max_min['spam_production_sum'])/(merge_prod_max_min['spam_production_sum_y']-merge_prod_max_min['spam_production_sum'])*100
-
-high_production=merge_prod_max_min[merge_prod_max_min['norm_production_%'] >= 50 ]
-grp = high_production.groupby(['city','commodity_name_gen', 'commodity_category', 'season', 'year'])
-high_production_sum=grp['percent_of_total_quantity'].sum()
-
-medium_production=merge_prod_max_min[(merge_prod_max_min['norm_production_%'] < 50) & (merge_prod_max_min['norm_production_%'] >= 20)]
-grp = medium_production.groupby(['city','commodity_name_gen', 'commodity_category', 'season', 'year'])
-medium_production_sum=grp['percent_of_total_quantity'].sum()
-
-low_production=merge_prod_max_min[merge_prod_max_min['norm_production_%'] < 20 ]
-grp = low_production.groupby(['city','commodity_name_gen', 'commodity_category', 'season', 'year'])
-low_production_sum=grp['percent_of_total_quantity'].sum()
-
 # distance to road (in %)
 
 df_primary=merged_data_all[merged_data_all['prox_to_road']=='primary']
@@ -225,13 +208,20 @@ no_data_sum=grp['percent_of_total_quantity'].sum()
 
 grp = merged_data_all.groupby(['city','commodity_name_gen', 'commodity_category', 'season', 'year'])
 
-summary_table=pd.concat([hinterland_sum, national_sum, intraregional_sum, border_sum, low_suitability_sum, medium_suitability_sum, high_suitability_sum, primary_sum, secondary_sum, none_sum, rural_sum, town_sum, city_sum, no_data_sum, high_production_sum, medium_production_sum, low_production_sum], axis=1)
+summary_table=pd.concat([hinterland_sum, national_sum, intraregional_sum, border_sum, low_suitability_sum, medium_suitability_sum, high_suitability_sum, primary_sum, secondary_sum, none_sum, rural_sum, town_sum, city_sum, no_data_sum], axis=1)
 
-summary_table.columns=['hinterland_sum', 'national_sum', 'intraregional_sum', 'border_sum', 'low_suitability_sum', 'medium_suitability_sum', 'high_suitability_sum', 'primary_sum', 'secondary_sum', 'none_sum', 'rural_sum', 'town_sum', 'city_sum', 'no_data_sum', 'high_production_sum', 'medium_production_sum', 'low_production_sum']
+summary_table.columns=['hinterland_sum', 'national_sum', 'intraregional_sum', 'border_sum', 'low_suitability_sum', 'medium_suitability_sum', 'high_suitability_sum', 'primary_sum', 'secondary_sum', 'none_sum', 'rural_sum', 'town_sum', 'city_sum', 'no_data_sum']
 
 summary_table.fillna(0, inplace=True)
 
 summary_table['national_wo_hinterland_sum']=summary_table['national_sum']-summary_table['hinterland_sum']
+
+summary_table_list_of_products=summary_table.reset_index()
+
+summary_table_list_of_products['commodity_name_gen'] = pd.Categorical(summary_table_list_of_products['commodity_name_gen'], ['Maize', 'Millet', 'Pulses', 'Groundnut', 'Yam', 'Plantain','Sorghum','Tomato','Cabbage', 'Eggplant', 'Watermelon', 'Orange', 'Banana', 'Cattle', 'Sheep'])
+
+print(summary_table_list_of_products)
+
 
 # plot: horinzontal stacked bar plot
 
@@ -275,8 +265,8 @@ for count, city in enumerate(summary_table_spatial_unit['city'].unique()):
     ax[count].tick_params(labelleft=True)
     handles, labels = ax[3].get_legend_handles_labels()
     fig.legend(handles, labels, loc='upper center')
-#plt.show()
-plt.savefig(myDirFigures+"Fig4_1.png")
+plt.show()
+#plt.savefig(myDirFigures+"Fig4_1.png")
 
 # Suitability
 
@@ -300,8 +290,8 @@ for count, city in enumerate(summary_table_spatial_unit['city'].unique()):
     ax[count].tick_params(labelleft=False,left=False)
     handles, labels = ax[3].get_legend_handles_labels()
     fig.legend(handles, labels, loc='upper center')
-#plt.show()
-plt.savefig(myDirFigures+"Fig4_2.png")
+plt.show()
+#plt.savefig(myDirFigures+"Fig4_2.png")
 
 # Road access
 
@@ -325,8 +315,8 @@ for count, city in enumerate(summary_table_spatial_unit['city'].unique()):
     ax[count].tick_params(labelleft=False,left=False)
     handles, labels = ax[3].get_legend_handles_labels()
     fig.legend(handles, labels, loc='upper center')
-#plt.show()
-plt.savefig(myDirFigures+"Fig4_3.png")
+plt.show()
+#plt.savefig(myDirFigures+"Fig4_3.png")
 
 # Settlement type
 
@@ -350,8 +340,108 @@ for count, city in enumerate(summary_table_spatial_unit['city'].unique()):
     ax[count].tick_params(labelleft=False,left=False)
     handles, labels = ax[3].get_legend_handles_labels()
     fig.legend(handles, labels, loc='upper center')
-#plt.show()
-plt.savefig(myDirFigures+"Fig4_4.png")
+plt.show()
+#plt.savefig(myDirFigures+"Fig4_4.png")
+
+## Table S2: chi2 test
+
+ContingTable=merged_data_all.copy()
+
+commodity_list=['Maize', 'Millet', 'Pulses', 'Groundnut', 'Yam', 'Plantain','Sorghum','Tomato','Cabbage', 'Eggplant', 'Watermelon', 'Orange', 'Banana', 'Cattle', 'Sheep']
+
+ContingTable=ContingTable[ContingTable['commodity_name_gen'].isin(commodity_list)]
+
+# assign primary road to intra-regional sources
+ContingTable.loc[ContingTable.national_origin == 'intraregional', 'prox_to_road'] = 'primary'
+# assign primary roads to sources in border regions (outside national boundaries)
+ContingTable.loc[((ContingTable.NAME_0 != 'Mali') | (ContingTable.NAME_0 != 'Ghana') | (ContingTable.NAME_0 != 'Cameroon') | (ContingTable.NAME_0 != 'Burkina Faso')) &  (ContingTable.national_origin == 'borderline'), 'prox_to_road'] = 'primary'
+
+print(ContingTable)
+
+# domestic vs import
+ContingTable.loc[ContingTable.national_origin=='national', 'spatial_unit'] = 'national'
+ContingTable.loc[ContingTable.national_origin=='intraregional', 'spatial_unit'] = 'intraregional'
+ContingTable.loc[ContingTable.national_origin=='borderline', 'spatial_unit'] = 'border'
+ContingTable.loc[ContingTable.distance_to_source_km <=50, 'spatial_unit'] = 'hinterland'
+
+# agricultural suitability
+ContingTable.loc[(ContingTable.avg_suitability >= 7) & (ContingTable.avg_suitability < 10), 'agric_suitability'] = 'low'
+ContingTable.loc[(ContingTable.avg_suitability >= 4) & (ContingTable.avg_suitability < 7), 'agric_suitability'] = 'medium'
+ContingTable.loc[(ContingTable.avg_suitability >= 1) & (ContingTable.avg_suitability < 4), 'agric_suitability'] = 'high'
+
+# size source settlement
+ContingTable.loc[ContingTable.node_size ==5000, 'settlement_type'] = 'rural'
+ContingTable.loc[(ContingTable.node_size > 5000) & (ContingTable.node_size <= 100000), 'settlement_type'] = 'town'
+ContingTable.loc[ContingTable.node_size > 100000, 'settlement_type'] = 'city'
+
+# hinterland
+ContingTable.loc[ContingTable.spatial_unit == 'hinterland', 'hinterland_binary'] = 'hinterland'
+ContingTable.loc[ContingTable.spatial_unit == 'national', 'hinterland_binary'] = 'no_hinterland'
+
+
+# Table S2a: interaction between agric_suitability and hinterland
+
+agric_suitability_hinterland= ContingTable.groupby(['agric_suitability','hinterland_binary'], as_index=False)['percent_of_total_quantity'].sum()
+
+contingency_table = pd.crosstab(agric_suitability_hinterland['agric_suitability'], agric_suitability_hinterland['hinterland_binary'], values=agric_suitability_hinterland['percent_of_total_quantity'], aggfunc='sum')
+print(contingency_table)
+
+column_names=list(contingency_table.columns.values)
+row_names=contingency_table.index.values.tolist()
+
+chi2_results=stats.chi2_contingency(contingency_table, correction=True, lambda_=None)
+
+expected_freq=chi2_results.expected_freq
+expected_freq_df = pd.DataFrame(expected_freq, index=row_names,columns= column_names)
+print(expected_freq_df)
+
+# Table S2b: interaction between road and hinterland
+
+road_hinterland= ContingTable.groupby(['prox_to_road','hinterland_binary'], as_index=False)['percent_of_total_quantity'].sum()
+
+contingency_table = pd.crosstab(road_hinterland['prox_to_road'], road_hinterland['hinterland_binary'], values=road_hinterland['percent_of_total_quantity'], aggfunc='sum')
+print(contingency_table)
+
+column_names=list(contingency_table.columns.values)
+row_names=contingency_table.index.values.tolist()
+
+chi2_results=stats.chi2_contingency(contingency_table, correction=True, lambda_=None)
+
+expected_freq=chi2_results.expected_freq
+expected_freq_df = pd.DataFrame(expected_freq, index=row_names,columns= column_names)
+print(expected_freq_df)
+
+# Table S2c: interaction between settlement_type and hinterland
+
+settlement_type_hinterland= ContingTable.groupby(['settlement_type','hinterland_binary'], as_index=False)['percent_of_total_quantity'].sum()
+
+contingency_table = pd.crosstab(settlement_type_hinterland['settlement_type'], settlement_type_hinterland['hinterland_binary'], values=settlement_type_hinterland['percent_of_total_quantity'], aggfunc='sum')
+print(contingency_table)
+
+column_names=list(contingency_table.columns.values)
+row_names=contingency_table.index.values.tolist()
+
+chi2_results=stats.chi2_contingency(contingency_table, correction=True, lambda_=None)
+
+expected_freq=chi2_results.expected_freq
+expected_freq_df = pd.DataFrame(expected_freq, index=row_names,columns= column_names)
+print(expected_freq_df)
+
+# Table S2d: interaction between commodity_category and hinterland
+
+commodity_category_hinterland= ContingTable.groupby(['commodity_category','hinterland_binary'], as_index=False)['percent_of_total_quantity'].sum()
+
+contingency_table = pd.crosstab(commodity_category_hinterland['commodity_category'], commodity_category_hinterland['hinterland_binary'], values=commodity_category_hinterland['percent_of_total_quantity'], aggfunc='sum')
+print(contingency_table)
+
+column_names=list(contingency_table.columns.values)
+row_names=contingency_table.index.values.tolist()
+
+chi2_results=stats.chi2_contingency(contingency_table, correction=True, lambda_=None)
+
+expected_freq=chi2_results.expected_freq
+expected_freq_df = pd.DataFrame(expected_freq, index=row_names,columns= column_names)
+print(expected_freq_df)
 
 
 ## Fig. 5 & 6 (scatterplots)
@@ -361,39 +451,73 @@ city_list_colors=pd.DataFrame(data=palette_dict)
 print(city_list_colors)
 category_list=df['commodity_category'].unique().tolist()
 
-# Fig. 5
+    ## Fig. 5
 fig, ax = plt.subplots(figsize=(12, 8))
 
 for city, city_color in zip(city_list_colors.city, city_list_colors.city_color):
     df_merge_city=df[df['city']==city]
     sns.regplot(data=df_merge_city, y='log_node_size', x='log_distance_km', ax=ax, label=city, color=city_color)
-    plt.xlabel('Distance (km, log transformed)',fontsize=12)
-    plt.ylabel('Settlement size (log transformed)',fontsize=12)
+    plt.xlabel('Distance from supplying settlement (km, log transformed)',fontsize=12)
+    plt.ylabel('Supplying settlement size (log transformed)',fontsize=12)
 plt.xticks(fontsize=12)
 plt.yticks(fontsize=12)
 plt.legend()
 rcParams.update({'figure.autolayout': True})
 plt.tight_layout()
-#plt.show()
-plt.savefig(myDirFigures+"Fig5.png")
+plt.show()
+#plt.savefig(myDirFigures+"Fig5.png")
 
-# Fig. 6
+    ## Fig. 6
 fig, ax = plt.subplots(figsize=(12, 8))
 
 for city, city_color in zip(city_list_colors.city, city_list_colors.city_color):
     df_merge_city=df[df['city']==city]
     sns.regplot(data=df_merge_city, y='percent_of_total_quantity', x='log_node_size', ax=ax, label=city, color=city_color)
-    plt.xlabel('Settlement size (log transformed)',fontsize=12)
-    plt.ylabel('Quantity (in %)',fontsize=12)
+    plt.xlabel('Supplying settlement size (log transformed)',fontsize=12)
+    plt.ylabel('Inflow quantity (%)',fontsize=12)
 plt.xticks(fontsize=12)
 plt.yticks(fontsize=12)
 plt.legend()
 rcParams.update({'figure.autolayout': True})
 plt.tight_layout()
-#plt.show()
-plt.savefig(myDirFigures+"Fig6.png")
+plt.show()
+#plt.savefig(myDirFigures+"Fig6.png")
 
 ## Linear models
+
+## Table S6a & S7a
+# by city
+for city in city_list:
+    df_merge_city=df[df['city']==city]
+    formula='percent_of_total_quantity ~ log_node_size '
+    #formula='log_node_size ~  log_distance_km'
+    model=smf.ols(formula, data=df_merge_city).fit()
+    results_summary=model.summary()
+    print(city)
+    print(results_summary)
+
+r_square_adjust_list=[]
+model_results_list=[]
+
+for city in df['city'].unique():
+    df_merge_city=df[df['city']==city]
+    formula='percent_of_total_quantity ~  log_node_size'
+    #formula='log_node_size ~  log_distance_km'
+    model=smf.ols(formula, data=df_merge_city).fit()
+    results_summary=model.summary()
+    results_as_html = results_summary.tables[1].as_html()
+    model_results_table=pd.read_html(results_as_html, header=0, index_col=0)[0]
+
+    model_results_table['city']=city
+    model_results_table['variables'] = model_results_table.index.astype(str)
+    model_results_list.extend(model_results_table.values.tolist())
+
+
+model_results_table_merge_all = pd.DataFrame(model_results_list, columns = ['coef', 'std err', 't', 'P>|t|', '[0.025', '0.975]', 'city', 'variable'])
+print(model_results_table_merge_all)
+
+## Table S6b & S7b
+# by city and crop
 
 r_square_adjust_list=[]
 model_results_list=[]
@@ -419,18 +543,10 @@ for city in df['city'].unique():
             r_square_adjust_list.append(crop)
             r_square_adjust_list.append(model.rsquared_adj)
 
-# coefficients
-print(model_results_list)
-
 model_results_table_merge_all = pd.DataFrame(model_results_list, columns = ['coef', 'std err', 't', 'P>|t|', '[0.025', '0.975]', 'city', 'crop', 'variable'])
-
 print(model_results_table_merge_all)
 
 variable_list=model_results_table_merge_all['variable'].unique().tolist()
-print(variable_list)
-#print(r_square_adjust_list)
-model_results_table_merge_all.to_csv(myDirOutput+f"/Linear_model/coefficient_quantity_nodesize.csv")
-#print(len(r_square_adjust_list))
 
 # r2 adjusted
 no_columns=len(r_square_adjust_list)/3
@@ -438,9 +554,8 @@ no_columns=int(no_columns)
 r_square_adjust_list = np.array(r_square_adjust_list).reshape(no_columns,3)
 r_square_adjust=pd.DataFrame(r_square_adjust_list, columns=['city', 'crop', 'rsquared=adj'])
 
-r_square_adjust.to_csv(myDirOutput+f"/Linear_model/r2_quantity_nodesize.csv")
 
-# plot data
+## Fig. S3 & S4: plot data
 colors = {'Tamale': '#20639B', 'Ouagadougou': '#3CAEA3', 'Bamako': '#F6D55C', 'Bamenda':'#ED553B'}
 
 for variable in variable_list:
@@ -473,13 +588,13 @@ for variable in variable_list:
     # Line to define zero on the y-axis
     ax.axvline(x=0, linestyle='--', color='red', linewidth=1)
     plt.tight_layout()
-    #plt.show()
-    plt.savefig(myDirFigures+"FigS4.png")
+    plt.show()
+    #plt.savefig(myDirFigures+"FigS4.png")
 
 
 ## standardised matrix (for Fig. 7 and Fig. S5)
 
-# referring to node (mean unit quantity, percent_of_total_connections, percent_of_total_sources)
+# referring to node (=supplying settlement) (mean unit quantity, percent_of_total_connections, percent_of_total_sources)
 
 grp=df.groupby(by=['commodity_name_gen', 'commodity_category', 'season', 'year', 'city']).agg({'percent_of_total_quantity': 'max'})
 
@@ -489,7 +604,7 @@ df_selected_columns=df[['city', 'season', 'year','commodity_name_gen', 'commodit
 
 dominant_nodes=pd.merge(df_selected_columns, grp, how='inner', on=['city', 'season', 'year', 'commodity_name_gen', 'commodity_category', 'percent_of_total_quantity'])
 
-# referring to supply chain (weighted distance, weighted node size, weighted unit quantity, number of sources)
+# referring to supply chain (=aggregated by product and settlement) (weighted distance, weighted node size, weighted unit quantity, number of sources)
 
 weighted_distance_supply_chain=df.groupby(['city', 'season', 'year', 'commodity_name_gen', 'commodity_category'], as_index=False)['weighted_distance'].sum()
 
@@ -589,12 +704,11 @@ pairplot=sns.pairplot(data=df_matrix_selected_columns_names, kind="reg", plot_kw
 pairplot.map_lower(corrfunc)
 pairplot.axes[2,0].set_ylim((-2,3))
 
-plt.savefig(myDirFigures+"FigS5.png")
-#plt.show()
+plt.show()
+#plt.savefig(myDirFigures+"FigS5.png")
 
 
-## Fig. 8 (regplot)
-
+## Fig. 8
 
 palette = {'Tamale': '#20639B', 'Ouagadougou': '#3CAEA3', 'Bamako': '#F6D55C', 'Bamenda':'#ED553B'}
 
@@ -620,14 +734,16 @@ plt.yticks(fontsize=10)
 plt.axvline(x=45, linewidth=0.5, color='0.5', linestyle='--')
 plt.axhline(y=5.2, linewidth=0.5, color='0.5', linestyle='--')
 plt.show()
-plt.savefig(myDirFigures+"Fig8.png")
+#plt.savefig(myDirFigures+"Fig8.png")
 
 
-## In text data
+## Interactions (in text)
 
 # origin of flows with access to primary, secondary roads, and with no access
 
-sum_per_road_access_city=merged_data_all.groupby(['city','prox_to_road'], as_index=False)['daily_quantity'].sum()
+merged_data_all_list_comm=merged_data_all[merged_data_all['commodity_name_gen'].isin(commodity_list)]
+
+sum_per_road_access_city=merged_data_all_list_comm.groupby(['city','prox_to_road'], as_index=False)['daily_quantity'].sum()
 
 print(sum_per_road_access_city)
 
@@ -656,17 +772,6 @@ print(percent_per_node_class_city)
 
 # mean percent from different nodes classes by commodity (aka interaction node size & crop)
 
-df_rural=df[df['node_size']==5000].copy()
-df_rural['node_class']='Rural'
-
-df_town=df[(df['node_size']>=10000) & (df['node_size']< 100000)].copy()
-df_town['node_class']='Town'
-
-df_city=df[df['node_size']>=100000].copy()
-df_city['node_class']='City'
-
-df_node_classes=pd.concat([df_rural, df_town, df_city])
-
 commodity_list1=['Maize','Millet', 'Sorghum', 'Pulses','Groundnut','Yam','Plantain'] # domestic staples; exclue yam and plantain for Ouaga and Bamako
 
 df_node_classes_selected_crops=df_node_classes[df_node_classes['commodity_name_gen'].isin(commodity_list1)]
@@ -675,7 +780,7 @@ sum_percent_per_commodity_city=df_node_classes_selected_crops.groupby(['city', '
 
 print(sum_percent_per_commodity_city)
 
-# interaction suitability - distance
+# interaction suitability - distance (Table S3)
 
 merged_data_all_selected_crops=merged_data_all.copy()
 
@@ -702,7 +807,6 @@ grp = merged_data_all_selected_crops_concat.groupby(['city','commodity_name_gen'
 
 print(grp)
 
-
 interaction=grp.copy()
 hinterland_suit=interaction[interaction['spatial_unit_x']=='Hinterland']
 hinterland_suit['hinterland_suitability']=hinterland_suit['weighted_suitability']
@@ -716,19 +820,19 @@ interaction_national_hinterland['suitability_difference']=interaction_national_h
 
 print(interaction_national_hinterland)
 
-# interaction distance and node class
+# interaction distance and node class (Table S5)
 
-# spatial units
+    # spatial units
 
-df_hinterland=merged_data_all[merged_data_all['distance_to_source_km']<=50].copy()
+df_hinterland=merged_data_all_list_comm[merged_data_all_list_comm['distance_to_source_km']<=50].copy()
 df_hinterland['spatial_unit']='Hinterland'
 
-df_national=merged_data_all[(merged_data_all['national_origin']=='national') & (merged_data_all['distance_to_source_km']>50)].copy()
+df_national=merged_data_all_list_comm[(merged_data_all_list_comm['national_origin']=='national') & (merged_data_all_list_comm['distance_to_source_km']>50)].copy()
 df_national['spatial_unit']='National'
 
 merged_data_all_concat=pd.concat([df_hinterland,df_national])
 
-# node classes
+    # node classes
 df_rural=merged_data_all_concat[merged_data_all_concat['node_size']==5000].copy()
 df_rural['node_class']='Rural'
 
@@ -744,25 +848,20 @@ sum_per_spatial_unit_node_class_city=df_node_classes.groupby(['city','spatial_un
 
 print(sum_per_spatial_unit_node_class_city)
 
-# interaction road access and distance
 
-df_hinterland=merged_data_all[merged_data_all['distance_to_source_km']<=50].copy()
-df_hinterland['spatial_unit']='Hinterland'
-
-df_national=merged_data_all[(merged_data_all['national_origin']=='national') & (merged_data_all['distance_to_source_km']>50)].copy()
-df_national['spatial_unit']='National'
-
-merged_data_all_concat=pd.concat([df_hinterland,df_national])
+# interaction road access and distance (Table S4)
 
 sum_per_road_access_spatial_unit_city=df_node_classes.groupby(['city','prox_to_road', 'spatial_unit'], as_index=False)['daily_quantity'].sum()
 
 print(sum_per_road_access_spatial_unit_city)
 
-# aggregated
+sum_per_road_access_spatial_unit_city.to_csv("C:/Users/hanna/Documents/papers/UBC/Outputs/text/model_paper/Proofs/analysis/sum_per_road_access_spatial_unit_city_new.csv")
 
-sum_per_road_access_city=merged_data_all.groupby(['city','prox_to_road'], as_index=False)['daily_quantity'].sum()
+    # aggregated
 
-sum_per_road_access_city.to_csv("C:/Users/hanna/Documents/papers/UBC/Outputs/prel_outputs/01122022/in_text_data/sum_per_road_access__city.csv")
+sum_per_road_access_city=merged_data_all_list_comm.groupby(['city','prox_to_road'], as_index=False)['daily_quantity'].sum()
+
+print(sum_per_road_access_city)
 
 # average weighted distance by city
 
@@ -775,31 +874,4 @@ sum_by_source_city_merge['quantity_percent_per_source']=sum_by_source_city_merge
 sum_by_source_city_merge['weighted_distance_per_city']=sum_by_source_city_merge['distance_to_source_km']*sum_by_source_city_merge['quantity_percent_per_source']/100
 
 print(sum_by_source_city_merge.groupby(['city'],as_index=False)['weighted_distance_per_city'].sum())
-
-# interaction production - distance
-
-merged_data_all_selected_crops=merged_data_all.copy()
-
-    # hinterland
-
-df_hinterland=merged_data_all_selected_crops[merged_data_all_selected_crops['distance_to_source_km']<=50].copy()
-df_hinterland['spatial_unit']='Hinterland'
-group_hinterland=df_hinterland.groupby(['city','commodity_name_gen', 'spatial_unit'], as_index=False)['daily_quantity'].sum()
-df_hinterland_merge=pd.merge(df_hinterland, group_hinterland, how='inner', on=['city', 'commodity_name_gen'])
-df_hinterland_merge['spatial_unit_sum']=df_hinterland_merge['daily_quantity_x']*100/df_hinterland_merge['daily_quantity_y']
-
-    # national
-df_national=merged_data_all_selected_crops[(merged_data_all_selected_crops['national_origin']=='national') & (merged_data_all_selected_crops['distance_to_source_km']>50)].copy()
-df_national['spatial_unit']='National'
-group_national=df_national.groupby(['city','commodity_name_gen', 'spatial_unit'], as_index=False)['daily_quantity'].sum()
-df_national_merge=pd.merge(df_national, group_national, how='inner', on=['city', 'commodity_name_gen'])
-df_national_merge['spatial_unit_sum']=df_national_merge['daily_quantity_x']*100/df_national_merge['daily_quantity_y']
-
-merged_data_all_selected_crops_concat=pd.concat([df_hinterland_merge,df_national_merge])
-
-merged_data_all_selected_crops_concat['weighted_spam_production_sum']=merged_data_all_selected_crops_concat['spatial_unit_sum']*merged_data_all_selected_crops_concat['spam_production_sum']/100
-
-grp = merged_data_all_selected_crops_concat.groupby(['city','commodity_name_gen', 'spatial_unit_x'], as_index=False)['weighted_spam_production_sum'].sum()
-
-print(grp)
 
